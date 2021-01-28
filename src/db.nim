@@ -1,6 +1,5 @@
 import tiny_sqlite
 import options
-import times
 
 let migrations: seq[string] = @[
     """

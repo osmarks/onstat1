@@ -10,6 +10,7 @@ import sugar
 import net
 import sequtils
 import strformat
+import std/exitprocs
 
 import ./db
 
@@ -21,10 +22,15 @@ migrate(database)
 close(database)
 
 var threadDB {.threadvar.}: Option[DbConn]
-proc getDB(): DbConn =
+proc getDB(): DbConn {.gcsafe.} =
     if isNone threadDB:
         let x = openDatabase("./monitoring.sqlite3")
         x.exec("PRAGMA journal_mode=WAL")
+        proc closeDB() =
+            try: close(x)
+            except: discard
+        addExitProc(closeDB)
+        when declared(onThreadDestroy): onThreadDestroy(closeDB)
         threadDB = some x
     get threadDB
 
@@ -36,11 +42,11 @@ proc fromDbValue(value: DbValue, T: typedesc[Time]): Time = timestampToTime(valu
 
 type
     ResponseType = enum
+        rtHttpTeapot = -1
         rtOk = 0
         rtHttpError = 1
-        rtHttpTeapot = 2
-        rtTimeout = 3
-        rtFetchError = 4
+        rtTimeout = 2
+        rtFetchError = 3
     Response = object
         rtype: ResponseType
         latency: int64 # microseconds
@@ -52,7 +58,7 @@ type
         uptimePercent: float
 
 proc uptimeSince(sid: int, time: Time): float =
-    let okPings = fromDbValue(get getDB().value("SELECT COUNT(*) FROM reqs WHERE site = ? AND (status = 0 OR status = 2)", sid), int)
+    let okPings = fromDbValue(get getDB().value("SELECT COUNT(*) FROM reqs WHERE site = ? AND status <= 0", sid), int)
     let totalPings = fromDbValue(get getDB().value("SELECT COUNT(*) FROM reqs WHERE site = ?", sid), int)
     okPings / totalPings
 
@@ -66,10 +72,11 @@ proc fetchLatest(row: ResultRow): Option[SiteStatus] =
 
 proc mainPage(): string =
     let sites = getDB().all("SELECT * FROM sites ORDER BY sid").map(fetchLatest).filter(x => isSome x).map(x => get x)
-    let up = sites.filter(x => (x.lastResponse == rtOk) or (x.lastResponse == rtHttpTeapot)).len()
+    let up = sites.filter(x => int(x.lastResponse) <= 0).len()
     let vnode = buildHtml(html()):
         head:
             meta(charset="utf8")
+            meta(http-equiv="refresh", content="60")
             title: text &"{up}/{sites.len} up - OnStat"
             style: text css
         body:
@@ -132,6 +139,6 @@ proc timerCallback(fd: AsyncFD): bool =
 
 echo "Starting up"
 asyncCheck pollTargets()
-addTimer(5000, false, timerCallback)
+addTimer(30000, false, timerCallback)
 var server = newAsyncHttpServer()
 waitFor server.serve(Port(7800), onRequest)
