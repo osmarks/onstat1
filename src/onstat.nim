@@ -75,6 +75,7 @@ proc mainPage(): string =
         head:
             meta(charset="utf8")
             meta(http-equiv="refresh", content="60")
+            meta(name="viewport", content="width=device-width, initial-scale=1")
             title: text &"{up}/{sites.len} up - OnStat"
             style: text css
         body:
