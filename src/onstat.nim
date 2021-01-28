@@ -18,6 +18,7 @@ macro includeFile(x: string): string = newStrLitNode(readFile(x.strVal))
 const css = includeFile("./src/style.css")
 let database = openDatabase("./monitoring.sqlite3")
 migrate(database)
+close(database)
 
 var threadDB {.threadvar.}: Option[DbConn]
 proc getDB(): DbConn =
