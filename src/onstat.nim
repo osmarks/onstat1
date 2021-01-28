@@ -99,6 +99,13 @@ proc mainPage(): string =
                         of rtTimeout: text "Timed out"
                         of rtFetchError: text "Fetch failed"
                     tdiv: text &"{site.uptimePercent * 100}% up in last week"
+            hr()
+            small:
+                text "made by "
+                a(href="https://osmarks.net"): text "gollark"
+                text ", currently hosted by "
+                a(href="https://ubq323.website"): text "ubq323"
+                text "."
     $vnode
 
 proc onRequest(req: Request) {.async.} =
