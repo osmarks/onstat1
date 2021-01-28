@@ -11,15 +11,13 @@ import net
 import sequtils
 import strformat
 import std/exitprocs
+import cligen
 
 import ./db
 
 macro includeFile(x: string): string = newStrLitNode(readFile(x.strVal))
 
 const css = includeFile("./src/style.css")
-let database = openDatabase("./monitoring.sqlite3")
-migrate(database)
-close(database)
 
 var threadDB {.threadvar.}: Option[DbConn]
 proc getDB(): DbConn {.gcsafe.} =
@@ -137,8 +135,21 @@ proc timerCallback(fd: AsyncFD): bool =
     asyncCheck pollTargets()
     false
 
-echo "Starting up"
-asyncCheck pollTargets()
-addTimer(30000, false, timerCallback)
-var server = newAsyncHttpServer()
-waitFor server.serve(Port(7800), onRequest)
+proc run(dbPath="./monitoring.sqlite3", port=7800, interval=30000, urls: seq[string]) =
+    ## Run onstat. Note that the URLs you configure will be persisted in the monitoring database. To remove them, you must manually update this.
+    let database = openDatabase(dbPath)
+    migrate(database)
+    for url in urls:
+        echo &"Adding {url}"
+        database.exec("INSERT INTO sites (url) VALUES (?)", url)
+    close(database)
+    echo "Starting up"
+    asyncCheck pollTargets()
+    addTimer(interval, false, timerCallback)
+    var server = newAsyncHttpServer()
+    waitFor server.serve(Port(port), onRequest)
+dispatch(run, help={
+    "dbPath": "path to SQLite3 database for historical data logging",
+    "port": "port to serve HTTP on",
+    "interval": "interval at which to poll other services (milliseconds)"
+})
