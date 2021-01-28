@@ -12,3 +12,4 @@ bin           = @["onstat"]
 requires "nim >= 1.4.2"
 requires "https://github.com/GULPF/tiny_sqlite#8fe760d9"
 requires "karax >= 1.2.1"
+requires "cligen >= 1"
