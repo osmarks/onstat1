@@ -26,6 +26,9 @@ h1 {
 .card.rtHttpError h2 {
     color: orange;
 }
+.card.rtHttpTeapot h2 {
+	color: blue;
+}
 .card.rtFetchError h2 {
     color: red;
 }
