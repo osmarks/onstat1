@@ -38,8 +38,9 @@ type
     ResponseType = enum
         rtOk = 0
         rtHttpError = 1
-        rtTimeout = 2
-        rtFetchError = 3
+        rtHttpTeapot = 2
+        rtTimeout = 3
+        rtFetchError = 4
     Response = object
         rtype: ResponseType
         latency: int64 # microseconds
@@ -51,7 +52,7 @@ type
         uptimePercent: float
 
 proc uptimeSince(sid: int, time: Time): float =
-    let okPings = fromDbValue(get getDB().value("SELECT COUNT(*) FROM reqs WHERE site = ? AND status = 0", sid), int)
+    let okPings = fromDbValue(get getDB().value("SELECT COUNT(*) FROM reqs WHERE site = ? AND (status = 0 OR status = 2)", sid), int)
     let totalPings = fromDbValue(get getDB().value("SELECT COUNT(*) FROM reqs WHERE site = ?", sid), int)
     okPings / totalPings
 
@@ -65,7 +66,7 @@ proc fetchLatest(row: ResultRow): Option[SiteStatus] =
 
 proc mainPage(): string =
     let sites = getDB().all("SELECT * FROM sites ORDER BY sid").map(fetchLatest).filter(x => isSome x).map(x => get x)
-    let up = sites.filter(x => x.lastResponse == rtOk).len()
+    let up = sites.filter(x => (x.lastResponse == rtOk) or (x.lastResponse == rtHttpTeapot)).len()
     let vnode = buildHtml(html()):
         head:
             meta(charset="utf8")
@@ -82,12 +83,14 @@ proc mainPage(): string =
                         of rtHttpError: text "⚠ "
                         of rtTimeout: text "✕ "
                         of rtFetchError: text "✕ "
+                        of rtHttpTeapot: text "🫖 "
                         text site.url
                     tdiv: text("Last pinged " & format(site.lastPing, "HH:mm:ss dd-MM-yyyy"))
                     tdiv:
                         case site.lastResponse
                         of rtOk: text &"Latency {site.lastLatency}ms"
                         of rtHttpError: text "HTTP error"
+                        of rtHttpTeapot: text &"Teapot, latency {site.lastLatency}ms"
                         of rtTimeout: text "Timed out"
                         of rtFetchError: text "Fetch failed"
                     tdiv: text &"{site.uptimePercent * 100}% up in last week"
@@ -108,7 +111,8 @@ proc pollTarget(s: string): Future[Response] {.async.} =
         let ts = now().utc
         let res = await client.get(s)
         let latency = (now().utc - ts).inMicroseconds
-        if res.code.is4xx or res.code.is5xx: x = Response(rtype: rtHttpError, latency: latency)
+        if res.code.int == 418: x = Response(rtype: rtHttpTeapot, latency: latency)
+        elif res.code.is4xx or res.code.is5xx: x = Response(rtype: rtHttpError, latency: latency)
         else: x = Response(rtype: rtOk, latency: latency)
     try:
         discard await withTimeout(doFetch(), 10000)
