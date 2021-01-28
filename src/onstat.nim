@@ -56,8 +56,8 @@ type
         uptimePercent: float
 
 proc uptimeSince(sid: int, time: Time): float =
-    let okPings = fromDbValue(get getDB().value("SELECT COUNT(*) FROM reqs WHERE site = ? AND status <= 0", sid), int)
-    let totalPings = fromDbValue(get getDB().value("SELECT COUNT(*) FROM reqs WHERE site = ?", sid), int)
+    let okPings = fromDbValue(get getDB().value("SELECT COUNT(*) FROM reqs WHERE site = ? AND status <= 0 AND timestamp >= ?", sid, time), int)
+    let totalPings = fromDbValue(get getDB().value("SELECT COUNT(*) FROM reqs WHERE site = ? AND timestamp >= ?", sid, time), int)
     okPings / totalPings
 
 proc fetchLatest(row: ResultRow): Option[SiteStatus] =
