@@ -131,6 +131,7 @@ proc pollTarget(s: string): Future[Response] {.async.} =
         discard await withTimeout(doFetch(), 10000)
     except:
         x = Response(rtype: rtFetchError, latency: 0)
+    client.close()
     return x
 
 proc pollTargets() {.async.} =
