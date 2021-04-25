@@ -55,7 +55,7 @@ type
 
 proc fetchLatest(ctx: Ctx, row: ResultRow): Option[SiteStatus] =
     let weekAgo = getTime() + initTimeInterval(weeks= -1)
-    let (site, url, rollingTotalPings, rollingSuccessfulPings, rollingLatency, rollingDataSince) = row.unpack((int, string, int64, int64, int64, int64))
+    let (site, url, rollingTotalPings, rollingSuccessfulPings, rollingLatency, rollingDataSince) = row.unpack((int, string, int64, int64, int64, Option[int64]))
     # work around bizarre SQLite query planner issue - it appears that if it has a literal value to compare site against it generates very fast VM code
     # but if it has a prepared state parameter it somehow refuses to use the index
     let row = ctx.db.one("SELECT timestamp, status, latency FROM reqs WHERE site = -1 OR site = ? ORDER BY timestamp DESC LIMIT 1", site)
