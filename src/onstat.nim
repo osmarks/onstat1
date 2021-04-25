@@ -97,7 +97,7 @@ proc mainPage(ctx: Ctx): string =
                             of ResponseType.Timeout: text "Timed out"
                             of ResponseType.FetchError: text "Fetch failed"
                         tdiv: text &"{site.uptimePercent * 100:.5f}% up, {site.averageLatency:.5f}ms latency in last week"
-                    if site.id in ctx.images: img(src= &"/vis/{site.id}", class="right", title= "&{site.url} 12-week status visualization")
+                    if site.id in ctx.images: img(src= &"/vis/{site.id}", class="right", title= &"{site.url} 12-week status visualization")
             hr()
             small:
                 text "made by "
